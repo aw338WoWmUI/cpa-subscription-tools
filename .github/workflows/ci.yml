@@ -19,7 +19,7 @@ jobs:
           repository: router-for-me/CLIProxyAPI
           ref: 5be2cdab0869cbaa3d401891f740aebf7e15aa99
           path: upstream-host
-      - run: go build -o /tmp/cpa-host ./cmd/server
+      - run: go build -buildvcs=false -o /tmp/cpa-host ./cmd/server
         working-directory: upstream-host
       - run: python3 scripts/integration.py --host /tmp/cpa-host --library dist/linux/amd64/cpa-subscription-tools.so
       - name: Package
@@ -29,7 +29,8 @@ jobs:
           if [[ "$GITHUB_REF_TYPE" != tag ]]; then version=0.1.0; fi
           asset="cpa-subscription-tools_${version}_linux_amd64.zip"
           cd dist/linux/amd64
-          zip "$asset" cpa-subscription-tools.so
+          cp ../../../LICENSE ../../../NOTICE .
+          zip "$asset" cpa-subscription-tools.so LICENSE NOTICE
           sha256sum "$asset" > checksums.txt
       - uses: actions/upload-artifact@v4
         with:

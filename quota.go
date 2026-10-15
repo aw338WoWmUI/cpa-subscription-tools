@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"time"
 
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/pluginapi"
 )
@@ -112,6 +113,11 @@ type credits struct {
 	Credits   []credit `json:"credits"`
 }
 
+func availableCredit(c credit, now time.Time) bool {
+	expires, err := time.Parse(time.RFC3339, c.ExpiresAt)
+	return c.ID != "" && c.Status == "available" && c.ResetType == "codex_rate_limits" && err == nil && expires.After(now)
+}
+
 func codexHeaders(m map[string]any) (http.Header, error) {
 	token := firstString(m, "access_token")
 	if token == "" {
@@ -176,7 +182,7 @@ func (s *service) reset(req resetRequest, callback string) (resetResult, error) 
 	}
 	found := false
 	for _, c := range d.Credits {
-		if c.ID == req.CreditID && c.Status == "available" && c.ResetType == "codex_rate_limits" {
+		if c.ID == req.CreditID && availableCredit(c, time.Now()) {
 			found = true
 		}
 	}
@@ -188,8 +194,28 @@ func (s *service) reset(req resetRequest, callback string) (resetResult, error) 
 		return resetResult{}, err
 	}
 	body, _ := json.Marshal(map[string]string{"credit_id": req.CreditID, "redeem_request_id": req.RequestID})
-	if _, err = s.upstream("POST", resetURL+"/consume", h, body, callback); err != nil {
+	resultBody, err := s.upstream("POST", resetURL+"/consume", h, body, callback)
+	if err != nil {
 		return resetResult{}, err
+	}
+	var ack map[string]any
+	if len(resultBody) > 0 && (json.Unmarshal(resultBody, &ack) != nil || ack == nil) {
+		return resetResult{}, errors.New("reset outcome is uncertain; refresh inventory before retrying")
+	}
+	if ack["success"] == false || ack["error"] != nil {
+		return resetResult{}, errors.New("reset was not confirmed by the account service")
+	}
+	after, err := s.credits(m, callback)
+	if err != nil {
+		return resetResult{}, errors.New("reset submitted; refresh inventory to verify the outcome")
+	}
+	for _, c := range after.Credits {
+		if c.ID == req.CreditID && c.Status == "available" {
+			return resetResult{}, errors.New("reset submitted but the selected credit is still available; refresh before retrying")
+		}
+	}
+	if after.Available != d.Available-1 {
+		return resetResult{}, errors.New("reset submitted but the credit count could not be verified; refresh before retrying")
 	}
 	result := resetResult{AuthIndex: req.AuthIndex, CreditID: req.CreditID, Success: true}
 	if s.resets == nil {

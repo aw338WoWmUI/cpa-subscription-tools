@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/pluginapi"
 )
@@ -94,6 +95,9 @@ func resetHost(t *testing.T, consumed *int) hostFunc {
 				t.Fatal("missing credential")
 			}
 			body := raw(map[string]any{"available_count": 1, "credits": []credit{{ID: "credit", Status: "available", ResetType: "codex_rate_limits", ExpiresAt: "2030-01-01T00:00:00Z"}}})
+			if *consumed > 0 {
+				body = raw(map[string]any{"available_count": 0, "credits": []credit{}})
+			}
 			if r.Method == "POST" {
 				var b map[string]string
 				json.Unmarshal(r.Body, &b)
@@ -101,12 +105,32 @@ func resetHost(t *testing.T, consumed *int) hostFunc {
 					t.Fatal("missing targeted/idempotent request")
 				}
 				*consumed++
-				body = []byte(`{}`)
+				body = []byte(`{"success":true}`)
 			}
 			return raw(pluginapi.HTTPResponse{StatusCode: 200, Body: body}), nil
 		}
 		t.Fatal("unexpected callback")
 		return nil, nil
+	}
+}
+
+func TestResetRejectsExpiredOrAmbiguousCreditsAndBusinessFailure(t *testing.T) {
+	for _, expires := range []string{"2000-01-01T00:00:00Z", "", "invalid"} {
+		if availableCredit(credit{ID: "c", Status: "available", ResetType: "codex_rate_limits", ExpiresAt: expires}, time.Now()) {
+			t.Fatal("unavailable credit accepted")
+		}
+	}
+	consumed := 0
+	base := resetHost(t, &consumed)
+	s := service{host: func(method string, payload any) (json.RawMessage, error) {
+		if method == "host.http.do" && payload.(map[string]any)["request"].(pluginapi.HTTPRequest).Method == "POST" {
+			return raw(pluginapi.HTTPResponse{StatusCode: 200, Body: []byte(`{"success":false}`)}), nil
+		}
+		return base(method, payload)
+	}, resets: map[string]resetResult{}}
+	r := resetRequest{AuthIndex: "account", CreditID: "credit", RequestID: "4a52f39e-f016-4ed4-8080-846f6e717acc", Confirm: true}
+	if _, err := s.reset(r, ""); err == nil || len(s.resets) != 0 {
+		t.Fatal("business failure cached as success")
 	}
 }
 func TestResetRequiresConfirmationAndReplaysOnlyOnce(t *testing.T) {

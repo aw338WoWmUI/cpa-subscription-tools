@@ -14,5 +14,5 @@ test:
 
 build:
 	mkdir -p dist/$(GOOS)/$(GOARCH)
-	CGO_ENABLED=1 go build -trimpath -buildmode=c-shared -ldflags '-s -w -X main.version=$(VERSION)' -o dist/$(GOOS)/$(GOARCH)/$(ID).$(EXT) .
+	CGO_ENABLED=1 go build -buildvcs=false -trimpath -buildmode=c-shared -ldflags '-s -w -X main.version=$(VERSION)' -o dist/$(GOOS)/$(GOARCH)/$(ID).$(EXT) .
 	rm -f dist/$(GOOS)/$(GOARCH)/$(ID).h
