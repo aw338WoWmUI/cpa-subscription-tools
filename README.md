@@ -11,11 +11,11 @@ It works with an unmodified CLIProxyAPI host. It does not register an OAuth prov
 - Show Codex Reset Bank credits and expiry. Redeem a selected credit only after confirmation, with an account-bound UUID idempotency key. There is no automatic redemption job.
 - Apply **Quota Pacer's own dry-run plans** through the host's credential-field API. The plugin does not copy its quota collector or scoring algorithm. Only fresh Claude/Codex priority and weight targets are applied, with explicit weight zero on confirmed depletion.
 
-Tested host: CLIProxyAPI v8.0.30 (`5be2cdab`), native ABI 1 / RPC schema 6. Published Linux/amd64 binaries target Debian 12/glibc; macOS/arm64 can be built locally. Other operating systems and C runtimes are not advertised.
+Tested host: CLIProxyAPI v8.0.30 (`5be2cdab`), native ABI 1 / RPC schema 6. Release archives cover Linux amd64/arm64 (Debian 12/glibc), macOS amd64/arm64 and Windows amd64. Each platform runs the same native-host integration in CI. Other operating systems and C runtimes are not advertised.
 
 ## Install
 
-Download the platform zip and `checksums.txt` from this repository's Releases, verify SHA-256 and extract the dynamic library to the host's configured `plugins/linux/amd64/` directory. Keep the existing provider plugins installed.
+Download the platform zip and `checksums.txt` from this repository's Releases, verify SHA-256 and extract the dynamic library to the host's configured `plugins/<goos>/<goarch>/` directory. Keep the existing provider plugins installed.
 
 ```yaml
 plugins:

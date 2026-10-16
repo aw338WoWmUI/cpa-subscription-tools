@@ -29,7 +29,7 @@ with tempfile.TemporaryDirectory(prefix="subscription-tools-test-") as directory
     config = root / "config.yaml"
     config.write_text(f'''host: "127.0.0.1"
 port: {port}
-auth-dir: "{auths}"
+auth-dir: {json.dumps(str(auths))}
 api-keys: ["synthetic-client-key"]
 remote-management:
   allow-remote: true
@@ -37,7 +37,7 @@ remote-management:
   disable-control-panel: true
 plugins:
   enabled: true
-  dir: "{plugins}"
+  dir: {json.dumps(str(plugins))}
   configs:
     cpa-subscription-tools:
       enabled: true
@@ -100,6 +100,10 @@ plugins:
             status, body = request("/v0/management/quota/providers")
             assert status == 200 and b"subscription-tools" in body, ("quota registration", status)
             print("Native host integration passed: ABI, resource, authentication, preview/import, duplicate rotation, redaction, reset confirmation, quota registration.")
+        except Exception:
+            log.flush()
+            print((root / "host.log").read_text(errors="replace"))
+            raise
         finally:
             process.terminate()
             try:

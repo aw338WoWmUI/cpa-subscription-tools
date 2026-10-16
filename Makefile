@@ -1,10 +1,13 @@
 ID := cpa-subscription-tools
-VERSION ?= 0.1.0
+VERSION ?= 0.1.1
 GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
 EXT := so
 ifeq ($(GOOS),darwin)
 EXT := dylib
+endif
+ifeq ($(GOOS),windows)
+EXT := dll
 endif
 
 .PHONY: test build
