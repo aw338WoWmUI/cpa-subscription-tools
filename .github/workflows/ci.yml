@@ -61,7 +61,7 @@ jobs:
       - run: go build -buildvcs=false -o cpa-host.exe ./cmd/server
         working-directory: upstream-host
       - name: Native host integration
-        run: ${{ matrix.python }} scripts/integration.py --host upstream-host/cpa-host.exe --library dist/$GOOS/$GOARCH/cpa-subscription-tools.${{ matrix.ext }}
+        run: ${{ matrix.python }} scripts/integration.py --host upstream-host/cpa-host.exe --library "dist/$GOOS/$GOARCH/cpa-subscription-tools.${{ matrix.ext }}"
       - name: Package
         run: ${{ matrix.python }} scripts/package.py
       - uses: actions/upload-artifact@v4
@@ -85,7 +85,7 @@ jobs:
         working-directory: release
         run: |
           test "$(find . -name '*.zip' | wc -l)" -eq 5
-          cat *.sha256 > checksums.txt
+          cat ./*.sha256 > checksums.txt
           sha256sum --check checksums.txt
       - name: Publish
         env:
