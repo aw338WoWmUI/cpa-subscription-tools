@@ -6,6 +6,8 @@ It works with an unmodified CLIProxyAPI host. It does not register an OAuth prov
 
 ## Features
 
+CLIProxyAPI and its Dashboard already import normalized credential JSON. The import helper here converts native CLI exports; ordinary JSON imports can continue using the existing Dashboard.
+
 - Import native Claude Code `claudeAiOauth` and Codex `tokens` JSON, with a token-free preview and explicit confirmation. Unrelated MCP credentials are excluded. Existing imported files are never replaced.
 - Query public GitHub Copilot quota using the existing Copilot plugin's credential. This plugin implements the host's standard quota-provider interface; it does not replace Copilot login or inference.
 - Show Codex Reset Bank credits and expiry. Redeem a selected credit only after confirmation, with an account-bound UUID idempotency key. There is no automatic redemption job.
@@ -82,6 +84,8 @@ make test build
 python3 scripts/integration.py --host /path/to/upstream/CLIProxyAPI \
   --library dist/linux/amd64/cpa-subscription-tools.so
 ```
+
+Intel macOS isolates host/plugin C ABI calls on separate threads because independent Go runtimes share thread-local state there. Other platforms use direct calls. The platform matrix verifies both directions of the host boundary through native imports and management requests.
 
 Tests use synthetic credentials and fake upstream responses. Native integration runs a separate unmodified host with a temporary auth directory and verifies resource registration, management authentication, preview/import, rotation preservation, redaction and reset confirmation.
 
