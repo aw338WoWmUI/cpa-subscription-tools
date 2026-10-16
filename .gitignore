@@ -7,3 +7,5 @@ coverage.out
 graft/
 __pycache__/
 .trail/README.md
+
+release/

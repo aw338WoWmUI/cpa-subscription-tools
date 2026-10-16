@@ -34,24 +34,11 @@ extern int cliproxyPluginCall(char*, uint8_t*, size_t, cliproxy_buffer*);
 extern void cliproxyPluginFree(void*, size_t);
 extern void cliproxyPluginShutdown(void);
 
-static const cliproxy_host_api* stored_host;
-
-static void store_host_api(const cliproxy_host_api* host) {
-	stored_host = host;
-}
-
-static int call_host_api(const char* method, const uint8_t* request, size_t request_len, cliproxy_buffer* response) {
-	if (stored_host == NULL || stored_host->call == NULL) {
-		return 1;
-	}
-	return stored_host->call(stored_host->host_ctx, method, request, request_len, response);
-}
-
-static void free_host_buffer(void* ptr, size_t len) {
-	if (stored_host != NULL && stored_host->free_buffer != NULL && ptr != NULL) {
-		stored_host->free_buffer(ptr, len);
-	}
-}
+extern int cliproxy_plugin_init(const cliproxy_host_api*, cliproxy_plugin_api*);
+extern void cliproxy_set_host(const cliproxy_host_api*);
+extern void cliproxy_set_plugin(cliproxy_plugin_api*);
+extern int cliproxy_call_host(const char*, const uint8_t*, size_t, cliproxy_buffer*);
+extern void cliproxy_free_host(void*, size_t);
 */
 import "C"
 
@@ -61,16 +48,14 @@ import (
 	"unsafe"
 )
 
-//export cliproxy_plugin_init
-func cliproxy_plugin_init(host *C.cliproxy_host_api, plugin *C.cliproxy_plugin_api) C.int {
+//export cliproxyPluginInit
+func cliproxyPluginInit(host *C.cliproxy_host_api, plugin *C.cliproxy_plugin_api) C.int {
 	if host == nil || plugin == nil || uint32(host.abi_version) != 1 {
 		return 1
 	}
-	C.store_host_api(host)
+	C.cliproxy_set_host(host)
 	plugin.abi_version = 1
-	plugin.call = C.cliproxy_plugin_call_fn(C.cliproxyPluginCall)
-	plugin.free_buffer = C.cliproxy_plugin_free_fn(C.cliproxyPluginFree)
-	plugin.shutdown = C.cliproxy_plugin_shutdown_fn(C.cliproxyPluginShutdown)
+	C.cliproxy_set_plugin(plugin)
 	return 0
 }
 
@@ -133,11 +118,11 @@ func nativeHostCall(method string, payload any) (json.RawMessage, error) {
 	p := C.CBytes(b)
 	defer C.free(p)
 	var out C.cliproxy_buffer
-	code := C.call_host_api(cm, (*C.uint8_t)(p), C.size_t(len(b)), &out)
+	code := C.cliproxy_call_host(cm, (*C.uint8_t)(p), C.size_t(len(b)), &out)
 	if out.ptr == nil {
 		return nil, errors.New("host callback unavailable")
 	}
-	defer C.free_host_buffer(out.ptr, out.len)
+	defer C.cliproxy_free_host(out.ptr, out.len)
 	if out.len > 10<<20 {
 		return nil, errors.New("host response too large")
 	}

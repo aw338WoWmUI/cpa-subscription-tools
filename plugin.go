@@ -12,7 +12,7 @@ import (
 
 const pluginID = "cpa-subscription-tools"
 
-var version = "0.1.0"
+var version = "0.1.1"
 
 type rpcError struct {
 	Code    string `json:"code"`
